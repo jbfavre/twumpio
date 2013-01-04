@@ -1,0 +1,184 @@
+#<Twitter::Tweet:0x00000002935808 @attrs=
+{
+  :created_at=>"Tue Jan 01 11:22:59 +0000 2013",
+  :id=>286070007492911105,
+  :id_str=>"286070007492911105",
+  :text=>"Au #JORF, un arrêté sur la communication dans les procédures devant la Cour d'appel - http://t.co/2dYj2iPG",
+  :source=>"web",
+  :truncated=>false,
+  :in_reply_to_status_id=>nil,
+  :in_reply_to_status_id_str=>nil,
+  :in_reply_to_user_id=>nil,
+  :in_reply_to_user_id_str=>nil,
+  :in_reply_to_screen_name=>nil,
+  :user=>{
+    :id=>108639519,
+    :id_str=>"108639519",
+    :name=>"Benoit Tabaka",
+    :screen_name=>"btabaka",
+    :location=>"Lost in cyberspace",
+    :description=>"Funny lobbyist in favor of Internet. Culture lover. Avid reader of the Official Journal. Photography addiction. Fantastic cook too. NB:  Personal points of view",
+    :url=>"http://www.tabaka.fr",
+    :entities=>{
+      :url=>{
+        :urls=>[
+          {
+            :url=>"http://www.tabaka.fr",
+            :expanded_url=>nil,
+            :indices=>[0, 20]
+          }
+        ]
+      },
+      :description=>{
+        :urls=>[]
+      }
+    },
+    :protected=>false,
+    :followers_count=>4988,
+    :friends_count=>418,
+    :listed_count=>241,
+    :created_at=>"Tue Jan 26 15:52:00 +0000 2010",
+    :favourites_count=>512,
+    :utc_offset=>3600,
+    :time_zone=>"Paris",
+    :geo_enabled=>true,
+    :verified=>false,
+    :statuses_count=>16166,
+    :lang=>"en",
+    :contributors_enabled=>false,
+    :is_translator=>false,
+    :profile_background_color=>"EBEBEB",
+    :profile_background_image_url=>"http://a0.twimg.com/images/themes/theme7/bg.gif",
+    :profile_background_image_url_https=>"https://si0.twimg.com/images/themes/theme7/bg.gif",
+    :profile_background_tile=>false,
+    :profile_image_url=>"http://a0.twimg.com/profile_images/1131105795/photo_BT_GM_LineArtopia_1_normal.jpg",
+    :profile_image_url_https=>"https://si0.twimg.com/profile_images/1131105795/photo_BT_GM_LineArtopia_1_normal.jpg",
+    :profile_link_color=>"990000",
+    :profile_sidebar_border_color=>"DFDFDF",
+    :profile_sidebar_fill_color=>"F3F3F3",
+    :profile_text_color=>"333333",
+    :profile_use_background_image=>true,
+    :default_profile=>false,
+    :default_profile_image=>false,
+    :following=>true,
+    :follow_request_sent=>nil,
+    :notifications=>nil
+  },
+  :geo=>nil,
+  :coordinates=>nil,
+  :place=>nil,
+  :contributors=>nil,
+  :retweet_count=>0,
+  :entities=>{
+    :hashtags=>[
+      {
+        :text=>"JORF",
+        :indices=>[3, 8]
+      }
+    ],
+    :urls=>[
+      {
+        :url=>"http://t.co/2dYj2iPG",
+        :expanded_url=>"http://www.legifrance.gouv.fr/affichTexte.do;jsessionid=?cidTexte=JORFTEXT000026871370&dateTexte=&oldAction=rechJO&categorieLien=id",
+        :display_url=>"legifrance.gouv.fr/affichTexte.do…",
+        :indices=>[86, 106]
+      }
+    ],
+    :user_mentions=>[]
+  },
+  :favorited=>false,
+  :retweeted=>false,
+  :possibly_sensitive=>false
+},
+@created_at=2013-01-01 12:22:59 +0100,
+@user=#<Twitter::User:0x00000002c87088 @attrs={
+  :id=>108639519,
+  :id_str=>"108639519",
+  :name=>"Benoit Tabaka",
+  :screen_name=>"btabaka",
+  :location=>"Lost in cyberspace",
+  :description=>"Funny lobbyist in favor of Internet. Culture lover. Avid reader of the Official Journal. Photography addiction. Fantastic cook too. NB:  Personal points of view",
+  :url=>"http://www.tabaka.fr",
+  :entities=>{
+    :url=>{
+      :urls=>[
+        {
+          :url=>"http://www.tabaka.fr",
+          :expanded_url=>nil,
+          :indices=>[0, 20]
+        }
+      ]
+    },
+    :description=>{:urls=>[]}
+  },
+  :protected=>false,
+  :followers_count=>4988,
+  :friends_count=>418,
+  :listed_count=>241,
+  :created_at=>"Tue Jan 26 15:52:00 +0000 2010",
+  :favourites_count=>512,
+  :utc_offset=>3600,
+  :time_zone=>"Paris",
+  :geo_enabled=>true,
+  :verified=>false,
+  :statuses_count=>16166,
+  :lang=>"en",
+  :contributors_enabled=>false,
+  :is_translator=>false,
+  :profile_background_color=>"EBEBEB",
+  :profile_background_image_url=>"http://a0.twimg.com/images/themes/theme7/bg.gif",
+  :profile_background_image_url_https=>"https://si0.twimg.com/images/themes/theme7/bg.gif",
+  :profile_background_tile=>false,
+  :profile_image_url=>"http://a0.twimg.com/profile_images/1131105795/photo_BT_GM_LineArtopia_1_normal.jpg",
+  :profile_image_url_https=>"https://si0.twimg.com/profile_images/1131105795/photo_BT_GM_LineArtopia_1_normal.jpg",
+  :profile_link_color=>"990000",
+  :profile_sidebar_border_color=>"DFDFDF",
+  :profile_sidebar_fill_color=>"F3F3F3",
+  :profile_text_color=>"333333",
+  :profile_use_background_image=>true,
+  :default_profile=>false,
+  :default_profile_image=>false,
+  :following=>true,
+  :follow_request_sent=>nil,
+  :notifications=>nil,
+  :status=>{
+    :created_at=>"Tue Jan 01 11:22:59 +0000 2013",
+    :id=>286070007492911105,
+    :id_str=>"286070007492911105",
+    :text=>"Au #JORF, un arrêté sur la communication dans les procédures devant la Cour d'appel - http://t.co/2dYj2iPG",
+    :source=>"web",
+    :truncated=>false,
+    :in_reply_to_status_id=>nil,
+    :in_reply_to_status_id_str=>nil,
+    :in_reply_to_user_id=>nil,
+    :in_reply_to_user_id_str=>nil,
+    :in_reply_to_screen_name=>nil,
+    :geo=>nil,
+    :coordinates=>nil,
+    :place=>nil,
+    :contributors=>nil,
+    :retweet_count=>0,
+    :entities=>{
+      :hashtags=>[
+        {
+          :text=>"JORF",
+          :indices=>[3, 8]
+        }
+      ],
+      :urls=>[
+        {
+          :url=>"http://t.co/2dYj2iPG",
+          :expanded_url=>"http://www.legifrance.gouv.fr/affichTexte.do;jsessionid=?cidTexte=JORFTEXT000026871370&dateTexte=&oldAction=rechJO&categorieLien=id",
+          :display_url=>"legifrance.gouv.fr/affichTexte.do…",
+          :indices=>[86, 106]
+        }
+      ],
+      :user_mentions=>[]
+    },
+    :favorited=>false,
+    :retweeted=>false,
+    :possibly_sensitive=>false
+  }
+}>,
+@retweeted_status=nil,
+@media=[]> 
