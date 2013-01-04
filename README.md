@@ -13,7 +13,8 @@ Uses following Ruby gems (amongst others):
 
 ## Features
 
-- Use Twitter Userstream API to get incoming statses & events
+- Use Twitter Userstream API to get incoming statuses & events
+- Use Twitter Rest API to get missing statuses at restart
 - Automatically detect replies, retweets and integrated media (photos)
 - Convert statuses into activities
 - Convert many Twitter 'events' into activities
