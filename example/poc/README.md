@@ -16,6 +16,16 @@ aptitude install redis-server
 gem install twitter tweetstream redis hiredis
 ```
 
+## Configuration
+You must provide oAuth credential into twumpio.rb script:
+```ruby
+params = { twitter: { consumer_key:       '',
+                      consumer_secret:    '',
+                      oauth_token:        '',
+                      oauth_token_secret: '' },
+           pubsub:  { host: 'localhost', port: 6379, timeout: 0, tcp_keepalive: true } }
+```
+
 ## Usage
 In one terminal, launch:
 
