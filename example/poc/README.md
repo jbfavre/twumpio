@@ -40,7 +40,7 @@ In another Terminal, launch:
 ruby twumpio.rb
 ```
 
-It will check on backend for 'tweetin::last_status'.
+It will check on backend for `tweetin::last_status`.
 If found, script will then use Twitter Rest API to catch up missing Tweets
 Once catch up, script will automatically switch from Rest API to Streaming API.
 
