@@ -129,8 +129,35 @@ module ActivityStream
     end
   end
 
+  class Favorite < ActivityStream::Activity
+    def initialize(event)
+      @verb      = event[:event]
+      @generator = { url: "http://pump.io/twumpio/" }
+      @provider  = { url: "https://www.twitter.com" }
+      @published = DateTime.parse("#{event[:created_at]}").rfc3339
+      @actor     = ActivityStream::Actor.new(event[:source])
+      @object    = ActivityStream::Activity.new(event[:target_object]).to_hash
+      @object[:objectType] = 'activity'
+    end
+  end
+
+  class Delete < ActivityStream::Activity
+    def initialize(status_id)
+      @verb = 'delete'
+      @object   = { id: status_id, objectType: 'note' }
+    end
+  end
+
+
+
+
+
+
+
+
   class Object
     attr_reader :id, :url, :objecttype
+
     def buildTwitterUrl(type, stub)
       case type
         when 'user'   then "https://www.twitter.com/#{stub}"
@@ -171,6 +198,7 @@ module ActivityStream
 
   class Image < ActivityStream::Object
     attr_reader :title, :image, :fullimage
+
     def initialize(status, title)
       medium = status[:entities][:media][0]
       @id         = medium[:id]
@@ -193,6 +221,7 @@ module ActivityStream
 
   class Note < ActivityStream::Object
     attr_reader :content
+
     def initialize(status, content)
       @id         = status[:id]
       @url        = buildTwitterUrl('status', status[:id])
@@ -237,27 +266,6 @@ module ActivityStream
 
 end
 
-class TwitterFavoriteToActivity
-  attr_reader :verb, :generator, :provider, :published, :actor, :object
-
-  def initialize(event)
-    @verb      = event[:event]
-    @generator = { url: "http://pump.io/twumpio/" }
-    @provider  = { url: "https://www.twitter.com" }
-    @published = DateTime.parse("#{event[:created_at]}").rfc3339
-    @actor     = ActivityStream::Actor.new(event[:source])
-    @object    = ActivityStream::Activity.new(event[:target_object]).to_hash
-    @object[:objectType] = 'activity'
-  end
-
-  def self.json_create(o)
-    new(*o['verb'], *o['generator'], *o['provider'], *o['published'], *o['actor'], *o['object'])
-  end
-  def to_json(*a)
-    { 'verb' => @verb, 'generator' => @generator, 'provider' => @provider, 'published' => @published, 'actor' => @actor, 'object' => @object }.to_json(*a)
-  end
-end
-
 class Twumpio
 
   attr_reader :feed, :backend, :stream, :restapi
@@ -298,13 +306,13 @@ class Twumpio
       config.oauth_token_secret = @twitter_params[:oauth_token_secret]
     end
     @stream = TweetStream::Daemon.new('twumpio::stream', { ARGV: ['start'], multiple: false, monitor: true, log_output: true, ontop: true, } )
-
+    
+    # Handle incoming events
     @stream.on_timeline_status do |status|
       # Empty activities list
       @feed.activities = []
       # Convert status into Activity and add it to activities list
-      activity = ActivityStream::Activity.new(status.attrs)
-      @feed.activities.push(activity)
+      @feed.activities.push(ActivityStream::Activity.new(status.attrs))
 
       puts "[twumpio::stream] incoming status ##{status.id.to_s} from @#{status.user.screen_name}"
       if status.media.length > 0
@@ -319,6 +327,41 @@ class Twumpio
       # Publish Feed to PubSub backend
       publishToBackend
     end
+    # Full event's list can be found here:
+    # https://dev.twitter.com/docs/streaming-apis/messages#Events_event
+    @stream.on_event(:favorite) do |event|
+      @feed.activities = []
+      # Convert status into Activity and add it to activity list
+      @feed.activities.push(ActivityStream::Favorite.new(event))
+      # Publish Feed to PubSub backend
+      publishToBackend
+      puts "[twumpio::stream] incoming event: user @#{event[:source][:screen_name]} favorited status ##{event[:target_object][:id]} from @#{event[:target_object][:user][:screen_name]}"
+    end
+    @stream.on_event(:unfavorite) do |event|
+      @feed.activities = []
+      # Convert status into Activity and add it to activity list
+      @feed.activities.push(ActivityStream::Favorite.new(event))
+      # Publish Feed to PubSub backend
+      publishToBackend
+      puts "[twumpio::stream] incoming event: user @#{event[:source][:screen_name]} unfavorited status ##{event[:target_object][:id]} from @#{event[:target_object][:user][:screen_name]}"
+    end
+    @stream.on_delete do |message|
+      @feed.activities = []
+      # Convert status into Activity and add it to activity list
+      @feed.activities.push(ActivityStream::Delete.new(event))
+      # Publish Feed to PubSub backend
+      publishToBackend
+      puts "[twumpio::stream] ##{message} has been deleted"
+    end
+
+
+
+
+
+
+
+
+
 
     @stream.on_inited do
       puts "[twumpio::stream] connection to userstream API established"
@@ -331,9 +374,6 @@ class Twumpio
     end
     @stream.on_limit do |discarded_count|
       puts "[twumpio::stream] incoming rate limit notice for ##{discarded_count} tweets"
-    end
-    @stream.on_delete do |message|
-      puts "[twumpio::stream] status ##{message} has been deleted"
     end
     @stream.on_unauthorized do |message|
       puts "[twumpio::stream] incoming HTTP 401\n#{message.inspect}\n\n"
@@ -353,25 +393,27 @@ class Twumpio
     @stream.on_stall_warning do |message|
       puts "[twumpio::stream] incoming stall_warning message. Discarding\n#{message.inspect}\n\n"
     end
-    # Full event's list can be found here:
-    # https://dev.twitter.com/docs/streaming-apis/messages#Events_event
-    @stream.on_event(:favorite) do |event|
-      @feed.activities = []
-      # Convert status into Activity and add it to activity list
-      @feed.activities.push(TwitterFavoriteToActivity.new(event))
-      # Publish Feed to PubSub backend
-      publishToBackend
-      puts "[twumpio::stream] incoming event: user @#{event[:source][:screen_name]} favorited status ##{event[:target_object][:id]} from @#{event[:target_object][:user][:screen_name]}"
-    end
-    @stream.on_event(:unfavorite) do |event|
-      puts "[twumpio::stream] incoming event: user @#{event[:source][:screen_name]} unfavorited status ##{event[:target_object][:id]} from @#{event[:target_object][:user][:screen_name]}"
-    end
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     @stream.on_event(:follow) do |event|
       puts "[twumpio::stream] incoming event: user @#{event[:source][:screen_name]} followed user @#{event[:target][:screen_name]}"
+      puts "\n\n========================================"
+      puts MultiJson.dump(event, :pretty => true)
+      puts "========================================\n\n"
     end
     @stream.on_event(:unfollow) do |event|
       puts "[twumpio::stream] incoming event: user @#{event[:source][:screen_name]} unfollowed user @#{event[:target][:screen_name]}"
-      puts "\n\n#{MultiJson.dump(event, :pretty => true)}\n\n"
+      puts "\n\n========================================"
+      puts MultiJson.dump(event, :pretty => true)
+      puts "========================================\n\n"
     end
     @stream.on_event(:block) do |event|
       puts "[twumpio::stream] incoming event: user @#{event[:source][:screen_name]} blocked user @#{event[:target][:screen_name]}"
