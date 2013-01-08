@@ -3,8 +3,10 @@ require "date"
 module ActivityStream
 
   class Activity
-    attr_reader :id, :url, :generator, :provider, :verb, :actor, :object, :published
-    attr_reader :to, :cc, :bto, :bcc
+    include Utils
+
+    attr_reader :id, :url, :generator, :provider, :verb, :actor,
+                :object, :published, :to, :cc, :bto, :bcc
 
     def initialize(status)
       @id        = status[:id]
@@ -84,17 +86,7 @@ module ActivityStream
       MultiJson.load(self.getActivity, :symbolize_keys => true)
     end
     def getActivity()
-      JSON.dump(self)
-    end
-    def self.json_create(o)
-      new(*o['id'], *o['url'], *o['generator'], *o['provider'],
-          *o['verb'], *o['actor'], *o['object'], *o['to'], *o['cc'],
-          *o['bto'], *o['bcc'], *o['published'])
-    end
-    def to_json(*a)
-      { 'id' => @id, 'url' => @url, 'generator' => @generator, 'provider' => @provider,
-        'verb' => @verb, 'actor' => @actor, 'object' => @object, 'to' => @to, 'cc' => @cc,
-        'bto' => @bto, 'bcc' => @bcc, 'published' => @published }.to_json(*a)
+      self.to_json
     end
   end
 

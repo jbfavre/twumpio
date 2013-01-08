@@ -3,6 +3,7 @@ require 'date'
 module ActivityStream
 
   class Object
+    include Utils
     attr_reader :id, :url, :objecttype
 
     def buildTwitterUrl(type, stub)
@@ -34,13 +35,6 @@ module ActivityStream
       end
     end
 
-    def self.json_create(o)
-      new(*o['id'], *o['url'], *o['objecttype'], *o['displayname'], *o['image'])
-    end
-    def to_json(*a)
-      { 'id' => @id, 'url' => @url, 'objectType' => @objecttype,
-        'displayName' => @displayname, 'image' => @image }.to_json(*a)
-    end
   end
 
   class Image < ActivityStream::Object
@@ -57,13 +51,6 @@ module ActivityStream
       @fullimage  = { url: "#{medium[:media_url]}" }
     end
 
-    def self.json_create(o)
-      new(*o['id'], *o['url'], *o['objecttype'], *o['title'], *o['image'], *o['fullimage'])
-    end
-    def to_json(*a)
-      { 'id' => @id, 'url' => @url, 'objectType' => @objecttype,
-        'title' => @title, 'image' => @image, 'fullimage' => @fullimage }.to_json(*a)
-    end
   end
 
   class Note < ActivityStream::Object
@@ -77,13 +64,6 @@ module ActivityStream
       @content    = content
     end
 
-    def self.json_create(o)
-      new(*o['id'], *o['url'], *o['objecttype'], *o['content'])
-    end
-    def to_json(*a)
-      { 'id' => @id, 'url' => @url, 'objectType' => @objecttype,
-        'content' => @content }.to_json(*a)
-    end
   end
 
   class Comment < ActivityStream::Object
@@ -102,12 +82,5 @@ module ActivityStream
       }
     end
 
-    def self.json_create(o)
-      new(*o['id'], *o['url'], *o['objecttype'], *o['in_reply_to'], *o['content'])
-    end
-    def to_json(*a)
-      { 'id' => @id, 'url' => @url, 'objectType' => @objecttype,
-        'in_reply_to' => @in_reply_to, 'content' => @content }.to_json(*a)
-    end
   end
 end
