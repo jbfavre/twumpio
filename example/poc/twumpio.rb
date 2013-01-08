@@ -348,7 +348,7 @@ class Twumpio
     @stream.on_delete do |message|
       @feed.activities = []
       # Convert status into Activity and add it to activity list
-      @feed.activities.push(ActivityStream::Delete.new(event))
+      @feed.activities.push(ActivityStream::Delete.new(message))
       # Publish Feed to PubSub backend
       publishToBackend
       puts "[twumpio::stream] ##{message} has been deleted"
