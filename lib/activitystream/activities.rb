@@ -114,8 +114,8 @@ module ActivityStream
       # Twitter events: follow vs. unfollow
       # ActivityStream verbs: follow vs. stop-following
       @verb      = case event[:event]
-                     'follow'   then 'follow'
-                     'unfollow' then 'stop-following'
+                     when 'follow'   then 'follow'
+                     when 'unfollow' then 'stop-following'
                    end
       @verb      = event[:event]
       @generator = { url: "http://pump.io/twumpio/" }
@@ -123,6 +123,7 @@ module ActivityStream
       @published = DateTime.parse("#{event[:created_at]}").rfc3339
       @actor     = ActivityStream::Actor.new(event[:source])
       @object    = ActivityStream::Actor.new(event[:target_object])
+    end
   end
 
 end
