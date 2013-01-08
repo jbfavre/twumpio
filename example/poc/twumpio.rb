@@ -13,213 +13,228 @@ require "timeout"
 
 trap(:INT) { puts; exit }
 
-# Implements PubSub against Redis with sort of persistence
-#
-#class PubSubRedis < Redis
-#
-#  def initialize(options = {})
-#    @timestamp = options[:timestamp].to_i || 0 # 0 means -- no backlog needed
-#    super
-#  end
-#
-#  # Add each event to a Sorted Set with the timestamp as the score
-#  def publish(channel, message)
-#    timestamp = Time.now.to_i
-#    zadd(channel, timestamp, MultiJson.encode([channel, message]))
-#    super(channel, MultiJson.encode(message))
-#  end
-#
-#  # returns the backlog of pending messages [ event, payload ] pairs
-#  # We do a union of sorted sets because we need to support wild-card channels.
-#  def backlog(channels, &block)
-#    return if @timestamp == 0
-#
-#    # Collect the entire set of events with wild-card support.
-#    events = channels.collect {|e| keys(e)}.flatten
-#
-#    return if not events or events.empty? # no events to process
-#
-#    destination = "backlog-#{Time.now.to_i}"
-#    zunionstore(destination, events)
-#    # We want events only after the timestamp so add the (. This ensures that
-#    # an event with this timestamp will not be sent.
-#    # TODO: We may have a condition where, multiple events for the same timestamp
-#    # may be recorded but will be missed out because of the (.
-#    messages = zrangebyscore(destination, "(#{@timestamp.to_s}", "+inf")
-#
-#    messages.each do |message|
-#      event, payload = MultiJson.decode(message)
-#      block.call(event, payload)
-#    end
-#
-#    # cleanup
-#    del(destination)
-#  end
-#end
+module ActivityStream
 
-class ActivityFeed
-  attr_accessor :activities
+  class Feed
+    attr_accessor :activities
 
-  def initialize
-    @activities = []
+    def initialize  
+      @activities = []
+    end
+
+    def getActivities()
+      JSON.dump(self)
+    end
+    def self.json_create(o)
+      new(*o['items']['activities'])
+    end
+    def to_json(*a)
+      { 'items' => activities }.to_json(*a)
+    end
   end
 
-  def getActivities()
-    JSON.dump(self)
-  end
-  def self.json_create(o)
-    new(*o['items']['activities'])
-  end
-  def to_json(*a)
-    { 'items' => activities }.to_json(*a)
-  end
-end
+  class Activity
+    attr_reader :id, :url, :generator, :provider, :verb, :actor, :object, :published
+    attr_reader :to, :cc, :bto, :bcc
 
-class TwitterUsertoActor
-  attr_reader :id, :url, :objecttype, :displayname, :image
+    def initialize(status)
+      @id        = status[:id]
+      @verb      = 'post'
+      @url       = "https://www.twitter.com/statuses/#{status[:id].to_s}"
+      @generator = { url: "http://pump.io/twumpio/" }
+      @provider  = { url: "https://www.twitter.com" }
+      @published = DateTime.parse("#{status[:created_at]}").rfc3339
+      @actor     = ActivityStream::Actor.new(status[:user])
+      @cc        = nil
 
-  def initialize(user)
-    @id  = "acct:#{user[:screen_name]}@twitter.com"
-    @url = "https://www.twitter.com/#{user[:screen_name]}"
-    @objecttype = 'person'
-    @displayname = "#{user[:name]}"
-    @image = [{ url: "#{user[:profile_image_url]}", height: 48, width:48 },
-              { url: "#{user[:profile_image_url_https]}", height: 48, width:48 }]
-  end
+      status[:text].gsub!("\n", " ")
+      links      = extractLinksFromEntities(status[:entities])
 
-  def self.json_create(o)
-    new(*o['id'], *o['url'], *o['objecttype'], *o['displayname'], *o['image'])
-  end
-  def to_json(*a)
-    { 'id' => @id, 'url' => @url, 'objectType' => @objecttype,
-      'displayName' => @displayname, 'image' => @image }.to_json(*a)
-  end
-end
-
-class TwitterStatusToActivity
-  attr_reader :id, :url, :generator, :provider, :verb, :actor, :object, :cc, :published
-
-  def initialize(status)
-    @id        = status[:id]
-    @verb      = 'post'
-    @url       = "https://www.twitter.com/statuses/#{status[:id].to_s}"
-    @generator = { url: "http://pump.io/twumpio/" }
-    @provider  = { url: "https://www.twitter.com" }
-    @published = DateTime.parse("#{status[:created_at]}").rfc3339
-    @actor     = TwitterUsertoActor.new(status[:user])
-    @cc        = nil
-
-    status[:text].gsub!("\n", " ")
-    links      = extractLinksFromEntities(status[:entities])
-
-    if status.has_key?(:retweeted_status)
-      @verb   = 'share'
-      @object = TwitterStatusToActivity.new(status[:retweeted_status]).to_hash
-      @object[:objectType] = 'activity'
-
-    elsif status[:in_reply_to_status_id]
-      @object[:objectType] = 'comment'
-      @object[:in_reply_to] = {
-        id: status[:in_reply_to_status_id],
-        objectType: 'note',
-        url: "https://www.twitter.com/statuses/#{status[:in_reply_to_status_id].to_s}"
-      }
-
-    else
-      if status[:entities].has_key?(:media)
-        medium = status[:entities][:media][0]
-        @object = {
-          id: medium[:id],
-          objectType: 'image',
-          title: expandTwitterUrl(status[:text], links),
-          image: { url: "#{medium[:media_url]}" },
-          fullImage: { url: "#{medium[:media_url]}" },
-          url: "#{medium[:expanded_url]}"
-        }
-        @cc = processUserMention(status[:entities])
+      if status.has_key?(:retweeted_status)
+        @verb   = 'share'
+        @object = ActivityStream::Activity.new(status[:retweeted_status]).to_hash
+        @object[:objectType] = 'activity'
 
       else
-        @object = {
-          id: status[:id],
-          objectType: 'note',
-          content: expandTwitterUrl(status[:text], links)
-        }
-        @cc = processUserMention(status[:entities])
+        if status[:entities].has_key?(:media)
+          @object = ActivityStream::Image.new(status, expandTwitterUrl(status[:text], links))
+          @cc = processUserMention(status[:entities])
 
+        elsif status[:in_reply_to_status_id]
+            @object = ActivityStream::Comment.new(status, expandTwitterUrl(status[:text], links))
+            @cc = processUserMention(status[:entities])
+
+        else
+          @object = ActivityStream::Note.new(status, expandTwitterUrl(status[:text], links))
+          @cc = processUserMention(status[:entities])
+
+        end
       end
     end
 
-    # If it's a reply, we have to add in_reply_to into object
-    # and change objectType
-    if status[:in_reply_to_status_id]
-      @object[:objectType] = 'comment'
-      @object[:in_reply_to] = {
+    def extractLinksFromEntities(entities)
+      links = []
+      if entities.has_key?(:urls) && entities[:urls].length > 0
+        entities[:urls].each do | link |
+          # replace t.co url with expanded one
+          result = { indices: link[:indices], real_url: link[:expanded_url] }
+          links.push(result)
+        end
+      end
+      if entities.has_key?(:media) && entities[:media].length > 0
+        entities[:media].each do | medium |
+          # delete t.co url since media will be embedded and displayed
+          result = { indices: medium[:indices], real_url: '' }
+          links.push(result)
+        end
+      end
+      links = links.sort_by{ |url| url[:indices] }.reverse!
+    end
+
+    def expandTwitterUrl(text, links)
+      links.each do |url|
+        first = url[:indices][0]
+        last  = url[:indices][1] - 1
+        text[first..last] = "#{url[:real_url]}"
+      end
+      text.strip!
+      text
+    end
+
+    def processUserMention(entities)
+      cc = []
+      entities[:user_mentions].each do | mention |
+        cc << ActivityStream::Actor.new(mention)
+      end
+      if cc.length > 0
+        cc
+      end
+    end
+
+    def to_hash()
+      MultiJson.load(self.getActivity, :symbolize_keys => true)
+    end
+    def getActivity()
+      JSON.dump(self)
+    end
+    def self.json_create(o)
+      new(*o['id'], *o['url'], *o['generator'], *o['provider'],
+          *o['verb'], *o['actor'], *o['object'], *o['to'], *o['cc'],
+          *o['bto'], *o['bcc'], *o['published'])
+    end
+    def to_json(*a)
+      { 'id' => @id, 'url' => @url, 'generator' => @generator, 'provider' => @provider,
+        'verb' => @verb, 'actor' => @actor, 'object' => @object, 'to' => @to, 'cc' => @cc,
+        'bto' => @bto, 'bcc' => @bcc, 'published' => @published }.to_json(*a)
+    end
+  end
+
+  class Object
+    attr_reader :id, :url, :objecttype
+    def buildTwitterUrl(type, stub)
+      case type
+        when 'user'   then "https://www.twitter.com/#{stub}"
+        when 'status' then "https://www.twitter.com/statuses/#{stub.to_s}"
+      end
+    end
+    def buildTwitterId(type, stub)
+      case type
+        when 'user'   then "acct:#{stub}@twitter.com"
+      end
+    end
+  end
+
+  class Actor < ActivityStream::Object
+    attr_reader :displayname, :image
+
+    def initialize(user)
+      @id  = buildTwitterId('user', user[:screen_name])
+      @url = buildTwitterUrl('user', user[:screen_name])
+      @objecttype = 'person'
+
+      @displayname = "#{user[:name]}"
+      if user.has_key?(:profile_image_url) &&
+         user.has_key?(:profile_image_url_https) &&
+        @image = [{ url: "#{user[:profile_image_url]}", height: 48, width:48 },
+                  { url: "#{user[:profile_image_url_https]}", height: 48, width:48 }]
+      end
+    end
+
+    def self.json_create(o)
+      new(*o['id'], *o['url'], *o['objecttype'], *o['displayname'], *o['image'])
+    end
+    def to_json(*a)
+      { 'id' => @id, 'url' => @url, 'objectType' => @objecttype,
+        'displayName' => @displayname, 'image' => @image }.to_json(*a)
+    end
+  end
+
+  class Image < ActivityStream::Object
+    attr_reader :title, :image, :fullimage
+    def initialize(status, title)
+      medium = status[:entities][:media][0]
+      @id         = medium[:id]
+      @url        = "#{medium[:expanded_url]}"
+      @objecttype = 'image'
+
+      @title      = title
+      @image      = { url: "#{medium[:media_url]}" }
+      @fullimage  = { url: "#{medium[:media_url]}" }
+    end
+
+    def self.json_create(o)
+      new(*o['id'], *o['url'], *o['objecttype'], *o['title'], *o['image'], *o['fullimage'])
+    end
+    def to_json(*a)
+      { 'id' => @id, 'url' => @url, 'objectType' => @objecttype,
+        'title' => @title, 'image' => @image, 'fullimage' => @fullimage }.to_json(*a)
+    end
+  end
+
+  class Note < ActivityStream::Object
+    attr_reader :content
+    def initialize(status, content)
+      @id         = status[:id]
+      @url        = buildTwitterUrl('status', status[:id])
+      @objecttype = 'note'
+
+      @content    = content
+    end
+
+    def self.json_create(o)
+      new(*o['id'], *o['url'], *o['objecttype'], *o['content'])
+    end
+    def to_json(*a)
+      { 'id' => @id, 'url' => @url, 'objectType' => @objecttype,
+        'content' => @content }.to_json(*a)
+    end
+  end
+
+  class Comment < ActivityStream::Object
+    attr_reader :in_reply_to
+
+    def initialize(status, content)
+      @id          = status[:id]
+      @url         = buildTwitterUrl('status', status[:id])
+      @objecttype  = 'comment'
+
+      @content     = content
+      @in_reply_to = {
         id: status[:in_reply_to_status_id],
         objectType: 'note',
-        url: "https://www.twitter.com/statuses/#{status[:in_reply_to_status_id].to_s}"
-      }
-
-    end
-
-  end
-
-  def extractLinksFromEntities(entities)
-    links = []
-    if entities.has_key?(:urls) && entities[:urls].length > 0
-      entities[:urls].each do | link |
-        # replace t.co url with expanded one
-        result = { indices: link[:indices], real_url: link[:expanded_url] }
-        links.push(result)
-      end
-    end
-    if entities.has_key?(:media) && entities[:media].length > 0
-      entities[:media].each do | medium |
-        # delete t.co url since media will be embedded and displayed
-        result = { indices: medium[:indices], real_url: '' }
-        links.push(result)
-      end
-    end
-    links = links.sort_by{ |url| url[:indices] }.reverse!
-  end
-
-  def expandTwitterUrl(text, links)
-    links.each do |url|
-      first = url[:indices][0]
-      last  = url[:indices][1] - 1
-      text[first..last] = "#{url[:real_url]}"
-    end
-    text.strip!
-    text
-  end
-
-  def processUserMention(entities)
-    cc = []
-    entities[:user_mentions].each do | mention |
-      cc << {
-        id: "acct:#{mention[:screen_name]}@twitter.com",
-        displayName: "#{mention[:name]}",
-        objectType: "person"
+        url: buildTwitterUrl('status', status[:in_reply_to_status_id])
       }
     end
-    if cc.length > 0
-      cc
-    else
-      nil
+
+    def self.json_create(o)
+      new(*o['id'], *o['url'], *o['objecttype'], *o['in_reply_to'], *o['content'])
+    end
+    def to_json(*a)
+      { 'id' => @id, 'url' => @url, 'objectType' => @objecttype,
+        'in_reply_to' => @in_reply_to, 'content' => @content }.to_json(*a)
     end
   end
 
-  def to_hash()
-    MultiJson.load(self.getActivity, :symbolize_keys => true)
-  end
-  def getActivity()
-    JSON.dump(self)
-  end
-  def self.json_create(o)
-    new(*o['id'], *o['url'], *o['generator'], *o['provider'], *o['verb'], *o['actor'], *o['object'], *o['cc'], *o['published'])
-  end
-  def to_json(*a)
-    { 'id' => @id, 'url' => @url, 'generator' => @generator, 'provider' => @provider, 'verb' => @verb, 'actor' => @actor, 'object' => @object, 'cc' => @cc, 'published' => @published }.to_json(*a)
-  end
 end
 
 class TwitterFavoriteToActivity
@@ -230,8 +245,9 @@ class TwitterFavoriteToActivity
     @generator = { url: "http://pump.io/twumpio/" }
     @provider  = { url: "https://www.twitter.com" }
     @published = DateTime.parse("#{event[:created_at]}").rfc3339
-    @actor     = TwitterUsertoActor.new(event[:source])
-    @object    = TwitterStatusToActivity.new(event[:target_object])
+    @actor     = ActivityStream::Actor.new(event[:source])
+    @object    = ActivityStream::Activity.new(event[:target_object]).to_hash
+    @object[:objectType] = 'activity'
   end
 
   def self.json_create(o)
@@ -250,7 +266,8 @@ class Twumpio
     @twitter_params = params[:twitter]
     @backend_params = params[:pubsub]
     # Create Activity Feed
-    @feed = ActivityFeed.new
+    #@feed = ActivityFeed.new
+    @feed = ActivityStream::Feed.new
     # Initialize Redis backend
     # TODO - use persistent backlog as described here:
     # http://blog.joshsoftware.com/2011/01/03/do-you-need-a-push-notification-manager-redis-pubsub-to-the-rescue/
@@ -286,32 +303,17 @@ class Twumpio
       # Empty activities list
       @feed.activities = []
       # Convert status into Activity and add it to activities list
-      activity = TwitterStatusToActivity.new(status.attrs)
+      activity = ActivityStream::Activity.new(status.attrs)
       @feed.activities.push(activity)
 
-      if status.attrs.has_key?(:media) || (status.attrs[:retweeted_status] && status.attrs[:retweeted_status].has_key?(:media))
-        puts "\n\n======================================="
-        puts MultiJson.dump(status.attrs, :pretty => true)
-        puts "=======================================\n\n"
+      puts "[twumpio::stream] incoming status ##{status.id.to_s} from @#{status.user.screen_name}"
+      if status.media.length > 0
+        puts "[twumpio::stream] ##{status.id.to_s} contains media"
       end
-
       if status.attrs[:retweeted_status]
-        puts "[twumpio::stream] incoming status ##{status.id.to_s} from @#{status.user.screen_name}"
         puts "[twumpio::stream] ##{status.id.to_s} is retweet of ##{status.retweeted_status.id.to_s}"
-        if status.media.length > 0
-          puts "[twumpio::stream] media spotted into ##{status.retweeted_status.id.to_s}"
-        end
       elsif status.attrs[:in_reply_to_status_id]
-        puts "[twumpio::stream] incoming status ##{status.id.to_s} from @#{status.user.screen_name}"
         puts "[twumpio::stream] ##{status.id.to_s} is reply to ##{status.in_reply_to_status_id.to_s}"
-        if status.media.length > 0
-          puts "[twumpio::stream]  media into ##{status.id.to_s}"
-        end
-      else
-        puts "[twumpio::stream] incoming status ##{status.id.to_s} from @#{status.user.screen_name}"
-        if status.media.length > 0
-          puts "[twumpio::stream] media into ##{status.id.to_s}"
-        end
       end
 
       # Publish Feed to PubSub backend
@@ -325,7 +327,7 @@ class Twumpio
       puts "[twumpio::stream] incoming error '#{message}'"
     end
     @stream.on_reconnect do |timeout, retries|
-      puts "[twumpio::stream] incoming connection closed. Trying to reconnect ##{retries}, timeout #{timeout}"
+      puts "[twumpio::stream] incoming stream closed. Trying to reconnect ##{retries}, timeout #{timeout}"
     end
     @stream.on_limit do |discarded_count|
       puts "[twumpio::stream] incoming rate limit notice for ##{discarded_count} tweets"
@@ -448,7 +450,8 @@ class Twumpio
         # before being able to push them to backend
 
         # Convert status into Activity and add it to activities list
-        activity = TwitterStatusToActivity.new(status.attrs)
+        #activity = TwitterStatusToActivity.new(status.attrs)
+        activity = ActivityStream::Activity.new(status.attrs)
         @feed.activities.push(activity)
 
         if status.attrs[:retweeted_status]
