@@ -130,7 +130,7 @@ module Twumpio
         puts "[twumpio::stream] incoming HTTP 401\n#{message.inspect}\n\n"
       end
       @stream.on_direct_message do |message|
-        puts "[twumpio::stream] incoming direct message ##{message[:id]} from @#{message[:sender_screen_name]} to @#{message[:recipient_screen_name]}"
+        puts "[twumpio::stream] incoming direct message ##{message.attrs[:id]} from @#{message.attrs[:sender_screen_name]} to @#{message.attrs[:recipient_screen_name]}"
         @feed.items = []
         # Convert status into Activity and add it to activity list
         @feed.items.push(ActivityStream::DirectMessage.new(message.attrs))
