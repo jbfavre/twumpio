@@ -117,12 +117,26 @@ module ActivityStream
                      when 'follow'   then 'follow'
                      when 'unfollow' then 'stop-following'
                    end
-      @verb      = event[:event]
       @generator = { url: "http://pump.io/twumpio/" }
       @provider  = { url: "https://www.twitter.com" }
       @published = DateTime.parse("#{event[:created_at]}").rfc3339
       @actor     = ActivityStream::Actor.new(event[:source])
       @object    = ActivityStream::Actor.new(event[:target_object])
+    end
+  end
+
+  class DirectMessage < ActivityStream::Activity
+    def initialize(message)
+      links      = extractLinksFromEntities(message[:entities])
+
+      @id        = message[:id]
+      @verb      = 'post'
+      @generator = { url: "http://pump.io/twumpio/" }
+      @provider  = { url: "https://www.twitter.com" }
+      @published = DateTime.parse("#{message[:created_at]}").rfc3339
+      @actor     = ActivityStream::Actor.new(message[:sender])
+      @to        = ActivityStream::Actor.new(message[:recipient])
+      @object    = ActivityStream::Note.new(message, expandTwitterUrl(message[:text], links))
     end
   end
 
