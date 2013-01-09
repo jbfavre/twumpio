@@ -4,6 +4,7 @@ require 'json'
 require 'multi_json'
 require 'redis'
 require 'hiredis'
+require_relative "../lib/utils"
 require_relative "../lib/activitystream"
 require_relative "../lib/twumpio"
 
