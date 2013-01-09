@@ -1,4 +1,7 @@
 module Twumpio
+  class Controller
+  end
+
   class Frontend
     attr_reader :feed, :backend, :stream, :restapi
 
@@ -81,7 +84,7 @@ module Twumpio
         puts "[twumpio::stream] incoming event: user @#{event[:source][:screen_name]} followed user @#{event[:target][:screen_name]}"
         @feed.items = []
         # Convert status into Activity and add it to activity list
-        @feed.items.push(ActivityStream::Favorite.new(event))
+        @feed.items.push(ActivityStream::Follow.new(event))
         # Publish Feed to PubSub backend
         publishToBackend
       end
@@ -89,7 +92,7 @@ module Twumpio
         puts "[twumpio::stream] incoming event: user @#{event[:source][:screen_name]} unfollowed user @#{event[:target][:screen_name]}"
         @feed.items = []
         # Convert status into Activity and add it to activity list
-        @feed.items.push(ActivityStream::Favorite.new(event))
+        @feed.items.push(ActivityStream::Follow.new(event))
         # Publish Feed to PubSub backend
         publishToBackend
       end
@@ -127,7 +130,12 @@ module Twumpio
         puts "[twumpio::stream] incoming HTTP 401\n#{message.inspect}\n\n"
       end
       @stream.on_direct_message do |message|
-        puts "[twumpio::stream] incoming direct message:\n#{message.inspect}"
+        puts "[twumpio::stream] incoming direct message ##{message[:id]} from @#{message[:sender_screen_name]} to @#{message[:recipient_screen_name]}"
+        @feed.items = []
+        # Convert status into Activity and add it to activity list
+        @feed.items.push(ActivityStream::DirectMessage.new(message.attrs))
+        # Publish Feed to PubSub backend
+        publishToBackend
       end
       @stream.on_friends do |friends|
         puts "[twumpio::stream] incoming friend list. Discarding"
@@ -153,13 +161,16 @@ module Twumpio
 
       @stream.on_event(:block) do |event|
         puts "[twumpio::stream] incoming event: user @#{event[:source][:screen_name]} blocked user @#{event[:target][:screen_name]}"
+        puts "\n\n=================================================="
+        puts MultiJson.dump(event, :pretty => true)
+        puts "==================================================\n\n"
       end
       @stream.on_event(:unblock) do |event|
         puts "[twumpio::stream] incoming event: user @#{event[:source][:screen_name]} blocked user @#{event[:target][:screen_name]}"
+        puts "\n\n=================================================="
+        puts MultiJson.dump(event, :pretty => true)
+        puts "==================================================\n\n"
       end
-      #@stream.on_anything do |message|
-      #  puts "Got 'something': #{message.inspect}\n\n"
-      #end
     end
 
     def startTwitter
