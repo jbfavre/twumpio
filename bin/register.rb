@@ -9,7 +9,7 @@ puts "curl \
   -d 'application_type=native' \
   -d 'application_name=twumpio' \
   -d 'application_description=Twitter bridge for pump.io' \
-  http://as.jbfav.re:8000/api/client/register"
+  http://domain.tld:8000/api/client/register"
 
 puts "Given that your instance is hosted at http://domain.tld:8000"
 puts "you'll get something like:"
