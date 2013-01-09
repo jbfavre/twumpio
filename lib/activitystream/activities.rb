@@ -82,10 +82,10 @@ module ActivityStream
       end
     end
 
-    def to_hash()
+    def to_hash
       MultiJson.load(self.getActivity, :symbolize_keys => true)
     end
-    def getActivity()
+    def getActivity
       self.to_json
     end
   end
