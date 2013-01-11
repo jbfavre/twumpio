@@ -121,7 +121,7 @@ module ActivityStream
       @provider  = { url: "https://www.twitter.com" }
       @published = DateTime.parse("#{event[:created_at]}").rfc3339
       @actor     = ActivityStream::Actor.new(event[:source])
-      @object    = ActivityStream::Actor.new(event[:target_object])
+      @object    = ActivityStream::Actor.new(event[:target])
     end
   end
 
