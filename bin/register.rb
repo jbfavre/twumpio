@@ -26,8 +26,16 @@ puts "this instance of it with your user account."
  
 @consumer=OAuth::Consumer.new auth["consumer_key"],
                               auth["consumer_secret"],
-                              {:site=>"http://domain.tld:8000"}
+                              {
+                                :site               => "http://domain.tld:8000"
+                                :scheme             => :header,
+                                :http_method        => :post,
+                                :request_token_path => "/oauth/request_token",
+                                :access_token_path  => "/oauth/access_token",
+                                :authorize_path     => "/oauth/authorize"
+                              }
 
+@consumer.http.set_debug_output($stderr)
 @request_token = @consumer.get_request_token
 
 puts "Visit the following URL, log in if you need to, and authorize the app\n\n"
